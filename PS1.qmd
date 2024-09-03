@@ -5,23 +5,57 @@ format: html
 editor: visual
 ---
 
-## Quarto
+## Problem #1 - Wine Data
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+### a.
 
 ```{r}
-1 + 1
+wine <- read.table(file = "Datasets/wine/wine.data",
+                   sep = ',',
+                   col.names = c('class', 'alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids', 'nonflavanoid_phenols', 'proanthocyanins', 'color_intensity', 'hue', 'OD280_and_OD314_of_diluted_wines', 'proline'))
+head(wine)
 ```
 
-You can add options to executable code like this
+### b.
 
 ```{r}
-#| echo: false
-2 * 2
+table(wine$class)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+wine.names states that there are 59 wines of class 1, 71 of class 2, and 48 of class 3. This is confirmed by the previous table.
+
+### c.
+
+1.  
+
+```{r}
+cor(wine$alcohol, wine$color_intensity)
+```
+
+2.  
+
+```{r}
+cor(wine$alcohol[wine$class == 1], wine$color_intensity[wine$class == 1])
+cor(wine$alcohol[wine$class == 2], wine$color_intensity[wine$class == 2])
+cor(wine$alcohol[wine$class == 3], wine$color_intensity[wine$class == 3])
+```
+
+Class 1 has the highest, class 2 the lowest.
+
+3.
+
+```{r}
+wine$alcohol[wine$color_intensity == max(wine$color_intensity)]
+```
+
+4.
+
+```{r}
+proanthocyanins_greater_ash_vec <- c(wine$proanthocyanins > wine$ash)
+proanthocyanins_greater_ash_perc <- mean(proanthocyanins_greater_ash_vec)
+print(paste("Percentage of Wines with a Higher Content of Proanthocyanins than Ash:", proanthocyanins_greater_ash_perc, sep = ' '))
+```
+
+### d.
+
+
