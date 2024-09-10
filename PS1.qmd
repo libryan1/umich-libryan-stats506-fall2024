@@ -42,13 +42,13 @@ cor(wine$alcohol[wine$class == 3], wine$color_intensity[wine$class == 3])
 
 Class 1 has the highest, class 2 the lowest.
 
-3.
+3.  
 
 ```{r}
 wine$alcohol[wine$color_intensity == max(wine$color_intensity)]
 ```
 
-4.
+4.  
 
 ```{r}
 proanthocyanins_greater_ash_vec <- c(wine$proanthocyanins > wine$ash)
@@ -57,5 +57,15 @@ print(paste("Percentage of Wines with a Higher Content of Proanthocyanins than A
 ```
 
 ### d.
+
+```{r}
+wine_mean_table <- data.frame(Type = c('1', '2', '3', 'Overall'))
+for (i in 2:ncol(wine)) {
+  class_means <- tapply(wine[, i], wine$class, mean)
+  overall_mean <- mean(wine[, i])
+  wine_mean_table[names(wine)[i]] <- c(class_means[1], class_means[2], class_means[3], overall_mean)
+}
+wine_mean_table
+```
 
 
