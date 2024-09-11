@@ -59,7 +59,7 @@ print(paste("Percentage of Wines with a Higher Content of Proanthocyanins than A
 ### d.
 
 ```{r}
-wine_mean_table <- data.frame(Type = c('1', '2', '3', 'Overall'))
+wine_mean_table <- data.frame(Class = c('1', '2', '3', 'Overall'))
 for (i in 2:ncol(wine)) {
   class_means <- tapply(wine[, i], wine$class, mean)
   overall_mean <- mean(wine[, i])
@@ -68,4 +68,69 @@ for (i in 2:ncol(wine)) {
 wine_mean_table
 ```
 
+### e.
 
+```{r}
+test_stat <- function(mu1, mu2, s1, s2, n1, n2) {
+  return((mu1 - mu2) / sqrt( ((s1^2)/n1) + ((s2^2)/n2)))
+}
+
+dof <- function(s1, s2, n1, n2) {
+  numer <- ( ((s1^2)/n1) + ((s2^2)/n2) )^2
+  denom <- ( ( (((s1^2)/n1)^2 ) / (n1 - 1) ) + ( (((s2^2)/n2)^2 ) / (n2 - 1)) )
+  return(numer/denom)
+}
+
+t_test_diff_2_tail <- function(mu1, mu2, s1, s2, n1, n2) {
+  test_stat <- test_stat(mu1, mu2, s1, s2, n1, n2)
+  dof <- dof(s1, s2, n1, n2)
+  
+  if (test_stat > 0.5) {
+    return(pt(test_stat, dof, lower.tail = FALSE) * 2)
+  } else {
+    return(pt(test_stat, dof, lower.tail = TRUE) * 2)
+  }
+}
+```
+
+```{r}
+mean1 <- mean(wine$total_phenols[wine$class == 1])
+sd1 <- sd(wine$total_phenols[wine$class == 1])
+n1 <- length(wine$total_phenols[wine$class == 1])
+
+mean2 <- mean(wine$total_phenols[wine$class == 2])
+sd2 <- sd(wine$total_phenols[wine$class == 2])
+n2 <- length(wine$total_phenols[wine$class == 2])
+
+mean3 <- mean(wine$total_phenols[wine$class == 3])
+sd3 <- sd(wine$total_phenols[wine$class == 3])
+n3 <- length(wine$total_phenols[wine$class == 3])
+
+
+# Class 1 vs 2
+# H0: mu1 = mu2
+# H1: mu1 != mu2
+print(paste('P-Value of Class 1 vs 2:', t_test_diff_2_tail(mean1, mean2, sd1, sd2, n1, n2), sep = ''))
+print(paste('Class 1 vs 2 Test Statistic:', test_stat(mean1, mean2, sd1, sd2, n1, n2), sep = ''))
+print(paste('Class 1 vs 2 DoF:', dof(sd1, sd2, n1, n2), sep = ''))
+
+# Class 2 vs 3
+# H0: mu2 = mu3
+# h1: mu2 != mu3
+print(paste('P-Value of Class 2 vs 3:', t_test_diff_2_tail(mean2, mean3, sd2, sd3, n2, n3), sep = ''))
+print(paste('Class 2 vs 3 Test Statistic:', test_stat(mean2, mean3, sd2, sd3, n2, n3), sep = ''))
+print(paste('Class 2 vs 3 DoF:', dof(sd2, sd3, n2, n3), sep = ''))
+
+# Class 1 vs 3
+# H0: mu1 = mu3
+# H1: mu1 != mu3
+print(paste('P-Value of Class 1 vs 3:', t_test_diff_2_tail(mean1, mean3, sd1, sd3, n1, n3), sep = ''))
+print(paste('Class 1 vs 3 Test Statistic:', test_stat(mean1, mean3, sd1, sd3, n1, n3), sep = ''))
+print(paste('Class 1 vs 3 DoF:', dof(sd1, sd3, n1, n3), sep = ''))
+```
+
+All three tests are statistically significant at a significance value of 0.05.  At $\alpha = 0.05$ we reject the null hypothesis for all three tests, the mean total phenols are different between all classes of wine.
+
+## Problem #2 - AskAManager.org Data
+
+### a.
