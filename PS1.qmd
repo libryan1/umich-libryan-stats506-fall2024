@@ -5,6 +5,8 @@ format: html
 editor: visual
 ---
 
+Github: https://github.com/libryan1/umich-libryan-stats506-fall2024
+
 ## Problem #1 - Wine Data
 
 ### a.
@@ -213,5 +215,78 @@ askaman <- subset(askaman, ann_salary >= 1000)
 
 ```{r}
 print(paste('Final Sample Size: ', nrow(askaman), sep = ''))
+```
+
+## Problem 3 - Palindromic Numbers
+
+### a.
+
+```{r}
+isPalindromic <- function(num) {
+  digit_vec <- unlist(strsplit(toString(num), split = ''))
+  
+  # Get reversed number
+  reversed <- c()
+  n = length(digit_vec)
+  while (n > 0) {
+    reversed <- c(reversed, digit_vec[n])
+    n = n - 1
+  }
+  reversed <- as.integer(paste(reversed, collapse = ''))
+  
+  n = length(digit_vec)
+  len = length(digit_vec)
+  i = 1
+  status = TRUE
+  # Even length numbers
+  if (n %% 2 == 0) {
+    while (i <= len/2) {
+      if (digit_vec[i] == digit_vec[n]) {
+        i = i + 1
+        n = n - 1
+      } else {
+        status = FALSE
+        break
+      }
+    }
+    return(list('isPalindromic' = status, 'reversed' = reversed))
+  } else { # Odd length numbers
+    while (i < len/2) {
+      if (digit_vec[i] == digit_vec[n]) {
+        i = i + 1
+        n = n - 1
+      } else {
+        status = FALSE
+        break
+      }
+    }
+    return(list('isPalindromic' = status, 'reversed' = reversed))
+  }
+}
+```
+
+### b.
+
+```{r}
+nextPalindrome <- function(num) {
+  num = num + 1
+  status = FALSE
+  while (status == FALSE) {
+    if (unlist(isPalindromic(num)[1]) == TRUE) {
+      return(num)
+    } else{
+      num = num + 1
+    }
+  }
+}
+```
+
+### c.
+
+```{r}
+nums <- c(391, 9928, 19272719, 109, 2)
+for (num in nums) {
+  print(paste('Palindrome after ', num, ': ', nextPalindrome(num), sep = ''))
+}
 ```
 
