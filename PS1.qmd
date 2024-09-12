@@ -129,8 +129,89 @@ print(paste('Class 1 vs 3 Test Statistic:', test_stat(mean1, mean3, sd1, sd3, n1
 print(paste('Class 1 vs 3 DoF:', dof(sd1, sd3, n1, n3), sep = ''))
 ```
 
-All three tests are statistically significant at a significance value of 0.05.  At $\alpha = 0.05$ we reject the null hypothesis for all three tests, the mean total phenols are different between all classes of wine.
+All three tests are statistically significant at a significance value of 0.05. At $\alpha = 0.05$ we reject the null hypothesis for all three tests, the mean total phenols are different between all classes of wine.
 
 ## Problem #2 - AskAManager.org Data
 
 ### a.
+
+```{r}
+askaman <- read.csv(file = "Datasets/AskAManager.csv")
+askaman$X <- NULL
+```
+
+### b.
+
+```{r}
+colnames(askaman) <- c('timestamp', 'age_cohort', 'industry', 'title', 'job_context', 'ann_salary', 'salary_bonuses', 'salary_currency', 'other_currency', 'salary_context', 'country', 'us_state', 'city', 'years_experience', 'years_experience_field', 'education', 'gender', 'race')
+head(askaman)
+```
+
+### c.
+
+```{r}
+print(paste('Observations before limiting to USD:', nrow(askaman)))
+
+askaman <- subset(askaman, salary_currency == 'USD')
+
+print(paste('Observations after limiting to USD:', nrow(askaman)))
+```
+
+### d.
+
+```{r}
+library(dplyr)
+askaman <- mutate(askaman, max_age = ifelse(age_cohort == 'under 18', 17,
+                                            ifelse(age_cohort == '18-24', 24,
+                                                   ifelse(age_cohort == '25-34', 34,
+                                                          ifelse(age_cohort == '35-44', 44,
+                                                                 ifelse(age_cohort == '45-54', 54,
+                                                                        ifelse(age_cohort == '55-64', 64, 65)))))))
+
+askaman <- mutate(askaman, min_yrs_exp = ifelse(years_experience == '1 year or less', 0,
+                                                ifelse(years_experience == '2 - 4 years', 2,
+                                                       ifelse(years_experience == '5-7 years', 5,
+                                                              ifelse(years_experience == '8 - 10 years', 8,
+                                                                     ifelse(years_experience == '11 - 20 years', 11,
+                                                                            ifelse(years_experience == '21 - 30 years', 21,
+                                                                                   ifelse(years_experience == '31 - 40 years', 31, 41))))))))
+
+askaman <- mutate(askaman, min_yrs_field = ifelse(years_experience_field == '1 year or less', 0,
+                                                  ifelse(years_experience_field == '2 - 4 years', 2,
+                                                         ifelse(years_experience_field == '5-7 years', 5,
+                                                                ifelse(years_experience_field == '8 - 10 years', 8,
+                                                                       ifelse(years_experience_field == '11 - 20 years', 11,
+                                                                              ifelse(years_experience_field == '21 - 30 years', 21,
+                                                                                     ifelse(years_experience_field == '31 - 40 years', 31, 41))))))))
+
+# Remove all under 18; combos where age, experience, and field experience impossible
+askaman <- subset(askaman, max_age > 17 & max_age >= min_yrs_exp & max_age >= min_yrs_field & min_yrs_exp >= min_yrs_field)
+
+print(paste('Number of Observations: ', nrow(askaman)))
+```
+
+### e.
+
+```{r}
+length(subset(askaman, ann_salary > 500000))
+```
+We see that only 21 out of 23,142 people make more than 500,000 annually, so let's remove them from the data.
+
+```{r}
+askaman <- subset(askaman, ann_salary <= 500000)
+```
+
+```{r}
+length(subset(askaman, ann_salary < 1000))
+```
+
+We see that only 21 of the 23,142 people make less than 1,000.  Additionally, any job making less than 1,000 a year probably isn't worth keeping track of.  Let's remove them from the data.
+
+```{r}
+askaman <- subset(askaman, ann_salary >= 1000)
+```
+
+```{r}
+print(paste('Final Sample Size: ', nrow(askaman), sep = ''))
+```
+
