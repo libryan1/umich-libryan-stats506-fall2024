@@ -4,14 +4,9 @@ format: html
 editor: visual
 ---
 
-Problem 1 - Dice Game
+### Problem 1 - Dice Game
 
 a.  
-
-```{r}
-library(roxygen2)
-```
-
 
 ```{r}
 # Loop
@@ -473,3 +468,9 @@ mean(replicate(100000, play_dice_vec(1)))
 ```
 
 Yes this is a fair game.  We see that from a Monte Carlo simulation  of just 1 round of the dice game that the expected value of winnings, the profit from the game, is positive.  Thus You will overall win more money than you lose by playing this game, as each each round has a higher chance of you making a profit than losing money.
+
+### Problem 1 - Linear Regression
+
+a. 
+
+
