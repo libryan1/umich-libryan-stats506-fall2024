@@ -1,0 +1,172 @@
+---
+title: "STATS 506 Problem Set 2"
+format: html
+editor: visual
+---
+
+Problem 1 - Dice Game
+
+a.  
+
+```{r}
+# loop
+play_dice_loop <- function(n) {
+  # Get dice rolls
+    # Gets a random number between 0 and 1 (uniform distribution), 
+    # splits the number space between 0 and 1 into 6 equal parts, 
+    # which part the random number is in determines what number the dice rolled.
+    # This process is repeated n times, and each result is stored.
+  rolls <- c()
+  for (i in 1:n) {
+    prob <- runif(1)
+    if (prob < 1/6) {
+      rolls <- c(rolls, 1)
+    } else if (prob < 2/6) {
+      rolls <- c(rolls, 2)
+    } else if (prob < 3/6) {
+      rolls <- c(rolls, 3)
+    } else if (prob < 4/6) {
+      rolls <- c(rolls, 4)
+    } else if (prob < 5/6) {
+      rolls <- c(rolls, 5)
+    } else {
+      rolls <- c(rolls, 6)
+    }
+  }
+  
+  
+  # Calculate winnings
+    # Each roll costs $2 
+  fees_from_rolls <- n * 2 
+  
+    # Iterates through each roll, adds that roll * 2 to wins_from_rolls so long 
+    # as roll isn't 3 or 5.
+  wins_from_rolls <- 0
+  for (roll in rolls) {
+    if (roll != 3 & roll != 5) {
+      wins_from_rolls = wins_from_rolls + roll * 2
+    } else {
+      next
+    }
+  }
+    # Computes $ taken home after costs of playing are accounted for
+  winnings <- wins_from_rolls - fees_from_rolls
+  
+  
+  # Return profit from game
+  return(winnings)
+}
+```
+
+```{r}
+# Built-in vectorized functions
+play_dice_vec <- function(n) {
+  # Get rolls
+    # Built-in sample function, stores all rolls within a vector.
+  rolls <- sample(1:6, n, replace = TRUE)
+  
+  
+  # Calculate winnings
+    # Each roll costs $2 
+  fees_from_rolls <- n * 2 
+  
+    # Calculates sum of all rolls that aren't 3 or 5 and multiplies the sum by 2
+    # to acquire $ won from rolls.  This is algebraically equivalent to 
+    # multiplying each individual roll by 2 that aren't 3 or 5 and then summing
+    # those products.  All of this is done in vectorized format to the vector
+    # storing the rolls
+  wins_from_rolls <- sum(rolls[rolls != 3 & rolls != 5]) * 2
+  
+    # Computes $ taken home after costs of playing are accounted for
+  winnings <- wins_from_rolls - fees_from_rolls
+  
+  
+  # Return profit from game
+  return(winnings)
+}
+```
+
+```{r}
+# Table
+play_dice_table <- function(n) {
+  
+  # Get rolls
+    # Built-in sample function, stores all rolls within a vector.
+  rolls <- sample(1:6, n, replace = TRUE)
+  
+  
+  # Put rolls into table
+    # factor function when used with table creates 0 columns, where possible
+    # dice roll outcomes that did not occur are recorded as 0 in the table
+  table_rolls <- table(factor(rolls, levels = 1:6))
+  
+  
+  # Calculate winnings
+    # Each roll costs $2 
+  fees_from_rolls = n * 2
+  
+    # Acquires the number of times a roll that wasn't 3 or 5 occurred using the
+    # table.  Then takes those numbers, multiplies it by the value of the dice 
+    # and then by 2, then sums it all together.  This is algebraically 
+    # equivalent to taking each roll that wasn't 3 or 5, multiplying them by 2, 
+    # and then summing.
+  n_1 = as.numeric(table_rolls['1'])
+  n_2 = as.numeric(table_rolls['2'])
+  n_4 = as.numeric(table_rolls['4'])
+  n_6 = as.numeric(table_rolls['6'])
+  wins_from_rolls = n_1*1*2 + n_2*2*2 + n_4*4*2 + n_6*6*2
+  
+    # Computes $ taken home after costs of playing are accounted for
+  winnings <- wins_from_rolls - fees_from_rolls
+  
+  
+  # Return profit from game
+  return(winnings)
+}
+```
+
+```{r}
+# Apply
+play_dice_apply <- function(n) {
+  
+  # Get rolls
+    # Built-in sample function, stores all rolls within a vector.
+  rolls <- sample(1:6, n, replace = TRUE)
+  
+  
+  # Put rolls into dataframe with 4 columns that track which of the winning 
+  # rolls a roll was.  Each row is one of the n rows, with a 1 in one of the
+  # columns to indicate if it was that specific winning roll, and 0 otherwise.
+  ones <- rep(0, n)
+  twos <- rep(0, n)
+  fours <- rep(0, n)
+  sixes <- rep(0, n)
+  ones[rolls == 1] <- 1
+  twos[rolls == 2] <- 1
+  fours[rolls == 4] <- 1
+  sixes[rolls == 6] <- 1
+  rolls_df <- data.frame(is_1 = ones, is_2 = twos, is_4 = fours, is_6 = sixes)
+  
+  
+  
+  # Calculate winnings
+    # Each roll costs $2 
+  fees_from_rolls <- n * 2
+  
+    # Uses lapply to find sum of each column in the rolls dataframe, which gets
+    # the total number of rolls for each possible roll that would have won.
+  winning_rolls <- lapply(rolls_df, sum)
+  n_1 <- winning_rolls$is_1
+  n_2 <- winning_rolls$is_2
+  n_4 <- winning_rolls$is_4
+  n_6 <- winning_rolls$is_6
+  wins_from_rolls = n_1*1*2 + n_2*2*2 + n_4*4*2 + n_6*6*2
+  
+    # Computes $ taken home after costs of playing are accounted for
+  winnings <- wins_from_rolls - fees_from_rolls
+  
+  
+  # Return profit from game
+  return(winnings)
+}
+```
