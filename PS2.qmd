@@ -4,6 +4,8 @@ format: html
 editor: visual
 ---
 
+Github: https://github.com/libryan1/umich-libryan-stats506-fall2024
+
 ### Problem 1 - Dice Game
 
 a.  
