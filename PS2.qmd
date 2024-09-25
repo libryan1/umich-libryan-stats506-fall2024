@@ -17,6 +17,7 @@ play_dice_loop <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -60,6 +61,7 @@ play_dice_vec <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -101,6 +103,7 @@ play_dice_table <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -152,6 +155,7 @@ play_dice_apply <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -201,8 +205,7 @@ play_dice_apply <- function(n) {
 }
 ```
 
-
-b.
+b.  
 
 ```{r}
 play_dice_loop(3)
@@ -218,7 +221,7 @@ play_dice_apply(3)
 play_dice_apply(3000)
 ```
 
-c.
+c.  
 
 ```{r}
 # Loop
@@ -230,6 +233,7 @@ play_dice_loop_fixed <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -275,6 +279,7 @@ play_dice_vec_fixed <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -317,6 +322,7 @@ play_dice_table_fixed <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -369,6 +375,7 @@ play_dice_apply_fixed <- function(n) {
   
   
   # Sanitizing statement
+    # n must be numeric vector of length 1
   if (is.numeric(n) != TRUE) {
     stop('n must be numeric')
   } else if (length(n) > 1) {
@@ -432,11 +439,13 @@ play_dice_apply_fixed(3)
 play_dice_apply_fixed(3000)
 ```
 
-d.
+d.  
 
 ```{r}
 library(microbenchmark)
 # Seeds fixed to make written portion make sense
+# Microbenchmarks each function with n = 1,000 and 100,000, returns time in
+# microseconds.
 loop1k <- microbenchmark(play_dice_loop(1000), unit = 'microseconds')
 loop100k <- microbenchmark(play_dice_loop(100000), unit = 'microseconds')
 
@@ -459,18 +468,161 @@ print(apply1k)
 print(apply100k)
 ```
 
-In terms of mean run times, for 1000 apply is the slowest, then loop and table with vectorized being the quickest.  For 100,000 loop is the slowest, table and apply are about the same, and vectorized is by far the quickest.  Overall vectorized is the best if execution times are a concern.  Apply should only be used when there is a lot of data and vectorized methods cannot be used.  Tables should only be used when vectorized methods are unavailable.  Loops should only be used if execution times are irrelevant.
+In terms of mean run times, for 1000 apply is the slowest, then loop and table with vectorized being the quickest. For 100,000 loop is the slowest, table and apply are about the same, and vectorized is by far the quickest. Overall vectorized is the best if execution times are a concern. Apply should only be used when there is a lot of data and vectorized methods cannot be used. Tables should only be used when vectorized methods are unavailable. Loops should only be used if execution times are irrelevant.
+
+e.  
+
+```{r}
+# Uses the vectorized dice game playing only a single round, repeats this 
+# 100,000 times, and returns the mean of the returns for the single-round dice
+# game.
+mean(replicate(100000, play_dice_vec(1)))
+```
+
+Yes this is a fair game. We see that from a Monte Carlo simulation of just 1 round of the dice game that the expected value of winnings, the profit from the game, is positive. Thus You will overall win more money than you lose by playing this game, as each each round has a higher chance of you making a profit than losing money.
+
+### Problem 2 - Linear Regression
+
+a.  
+
+```{r}
+# Reads in cars.csv, reassigns the column names to that of the specified vector,
+# then returns first 6 rows to demonstrat renamed collumns.
+cars <- read.csv('Datasets/cars.csv')
+names(cars) <- c('height', 'length', 'width', 'driveline', 'engine', 
+                 'hybrid', 'gears', 'engine_info', 'city_mpg', 'fuel', 
+                 'hwy_mpg', 'transmission', 'id', 'make', 'model', 'year', 'hp',
+                 'torque')
+head(cars)
+```
+
+b.  
+
+```{r}
+# Limits cars dataframe to only rows with a fuel variable of "Gasoline", then
+# returns all of the unique entries within the fuel variable to demonstrate that
+# it worked.
+cars <- subset(cars, fuel == 'Gasoline')
+unique(cars$fuel)
+```
+
+c.  
+
+```{r}
+library(ggplot2)
+# Uses ggplot to create histogram of highway mpg
+ggplot(cars, aes(x = hwy_mpg)) + geom_histogram(bins = 30, color = 'black', fill = 'white')
+```
+
+```{r}
+# Uses ggplot to create QQ plot of highway mpg
+ggplot(cars, aes(sample = hwy_mpg)) + stat_qq() + stat_qq_line()
+```
+
+```{r}
+# Prints out the top 5 largest highway mpg
+cars$hwy_mpg[order(cars$hwy_mpg, decreasing = TRUE)[1:5]]
+```
+
+```{r}
+cars[order(cars$hwy_mpg, decreasing = TRUE)[1], ]
+```
+
+We can see that there is a single outlier in the highway mpg data, which belongs to a 2011 Chevrolet Silverado 1500 Hybrid 1HY which somehow has an mpg of 223. This is blatantly an error, as according to several websites (https://cars.usnews.com/cars-trucks/chevrolet/silverado-1500-hybrid/2011, https://www.edmunds.com/chevrolet/silverado-1500-hybrid/2011/st-101357493/features-specs/) the highway mpg should be 23. Thus we will change this mpg value to 23.
+
+```{r}
+# Changes the 2011 Chevy Silverado's highway mpg to 23, demonstrates that it
+# happened.
+chevy_silverado_2011_i <- order(cars$hwy_mpg, decreasing = TRUE)[1]
+cars[chevy_silverado_2011_i, 11] <- 23
+cars$hwy_mpg[chevy_silverado_2011_i]
+```
+
+```{r}
+# Uses ggplot to create histogram of highway mpg post-transformation
+ggplot(cars, aes(x = hwy_mpg)) + geom_histogram(bins = 30, color = 'black', fill = 'white')
+
+# Uses ggplot to create QQ plot of highway mpg post-transformation
+ggplot(cars, aes(sample = hwy_mpg)) + stat_qq() + stat_qq_line()
+```
+
+d.  
+
+```{r}
+# Converts year into a categorical variable for linear regression.
+  # For each unique year, creates an all 0 vector, changes an entry in it to 1
+  # if the of that car matches the vector, assigns it to an is_yr vector, where
+  # yr is one of the unique years.
+for (yr in unique(cars$year)) {
+  temp <- rep(0, dim(cars)[1])
+  temp[cars$year == yr] <- 1
+  assign(paste('is_', yr, sep = ''), temp)
+}
+
+  # Adds the year categorical variables to the cars dataset.  2009 is treated
+  # as the "base" year and is skipped (a car is from 2009 if all three 
+  # categorical variables are 0.)
+cars$is_2010 <- is_2010
+cars$is_2011 <- is_2011
+cars$is_2012 <- is_2012
+
+  # Demonstrates that the code worked by showing one entry for each unique year
+  # with the categorical and quantitative variables for year.
+cars[c(1, 750, 2000,4000), c(16, 19:21)]
+```
+
+```{r}
+# Uses lm() to create linear regression model predicting 
+model <- lm(hwy_mpg ~ torque + hp + height + length + width + is_2010 + is_2011 + is_2012, cars)
+summary(model)
+```
+
+For every 1 increase in torque, we expect highway mpg to decrease by 0.0517, on average. This relationship is significant at all traditionally used significance values.
 
 e.
 
 ```{r}
-mean(replicate(100000, play_dice_vec(1)))
+summary(cars$hp)
+hist(cars$hp)
 ```
 
-Yes this is a fair game.  We see that from a Monte Carlo simulation  of just 1 round of the dice game that the expected value of winnings, the profit from the game, is positive.  Thus You will overall win more money than you lose by playing this game, as each each round has a higher chance of you making a profit than losing money.
+Q1, median, and Q3 are probably reasonable numbers for hp
 
-### Problem 1 - Linear Regression
+```{r}
+summary(cars$torque)
+hist(cars$torque)
+```
 
-a. 
+150-400 seems like a good range for torque.
 
+```{r}
+library(emmeans)
 
+# Linear regression model, same as from part d but torque and hp share a 
+# coefficient (interaction).
+model <- lm(hwy_mpg ~ torque*hp + height + length + width + is_2010 + is_2011 + is_2012, cars)
+
+# Creates interaction plot between hp and torque, torque ranges from 150-400, the three chosen values of hp are 185, 263, and 317 (Q1, median, and Q3 respectively).
+emmip(model, hp ~ torque, at = list(torque = 150:400, hp = c(185, 263, 317)))
+```
+
+f.
+```{r}
+# Recreate old model for easy comparison
+old_model <- lm(hwy_mpg ~ torque + hp + height + length + width + is_2010 + is_2011 + is_2012, cars)
+
+# Use model.matrix to create design matrix X
+X <- model.matrix(hwy_mpg ~ torque + hp + height + length + width + is_2010 + is_2011 + is_2012, data = cars)
+
+# Convert vector of highway mpg to n x 1 matrix, where n is the number of rows in cars
+y <- matrix(cars$hwy_mpg, nrow = length(cars$hwy_mpg), ncol = 1)
+
+# Solves for beta-hat, first finds X^t * X, then calculates that product's inverse, then multiplies that inverse by X^t, and finally multiplies that product by y
+beta_hat <- ( solve((t(X) %*% X)) %*% t(X) ) %*% y
+
+# Print calculated coefficients
+beta_hat
+
+# Print coefficients from lm model
+summary(old_model)$coefficients
+```
