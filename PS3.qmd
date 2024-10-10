@@ -115,3 +115,105 @@ prop.test(c(n_glasses_male, n_glasses_female), c(n_male, n_female))
 The t-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the mean of odds for wearing glasses/contacts for distance are different between men and women, the odds between men and women are different.
 
 The z-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the proportion of glasses/contacts wearers for distance are different between men and women.
+
+### Problem 2 - Sakila
+
+a.
+
+```{r}
+# Load sakila data
+library(DBI)
+library(RSQLite)
+sakila <- dbConnect(SQLite(), 'Datasets/sakila_master.db')
+
+# From sakila database, get release_year column and counts for each release_year from film table, aggregated by release_year
+dbGetQuery(sakila, "SELECT release_year, COUNT(release_year) 
+           FROM film 
+           GROUP BY release_year")
+```
+
+b.
+
+```{r}
+# Use SQL store as df method 
+# From film_category table (all movies with their categories stored in id), get category_id column as id1, left join to category table (all movie categories) where category_id is id2 and the name of the category (name), left join them by category
+genres <- dbGetQuery(sakila, 
+                     "SELECT category_id as id1, name
+                     FROM film_category
+                     LEFT JOIN
+                     (SELECT category_id as id2, name
+                     FROM category)
+                     ON id1 = id2")
+
+# Get unique genre names, create empty vector to store counts for each name, loop through every genre, then through every movie, counting the movies that have that genre and storing it in the empty vector
+genres_vec <- unique(genres$name)
+genres_count_vec <- rep(0, length(unique(genres$name)))
+i = 1
+for (genre in genres_vec) {
+  count = 0
+  for (movie_genre in genres$name) {
+    if (genre == movie_genre) {
+      count = count + 1
+    }
+  }
+  genres_count_vec[i] <- count
+  i = i + 1
+}
+
+# Print value from genre name vector with same index as minimum value of genre count vector, the print minimum value of genre count vector
+genres_vec[genres_count_vec == min(genres_count_vec)]
+min(genres_count_vec)
+```
+
+```{r}
+# SQL only method
+# From category table get category_id column as id1; left join to columns name and count of category_id (id2) as count, from film_category table such that id1 = id2, aggregate by id2 for count, order by descending count, get 1st row
+dbGetQuery(sakila, 
+           "SELECT category_id as id1, name, count(id2) as count
+           FROM category
+           LEFT JOIN 
+           (SELECT category_id as id2
+           FROM film_category)
+           ON id1 = id2
+           GROUP BY id2
+           ORDER BY count
+           LIMIT 1")
+```
+
+c.
+
+```{r}
+# Use SQL store as df method 
+# Get customer_id, address_id as addr1 from customer table, 
+# Left join to address_id as addr2 and city_id as city1 from address table on addr1 and addr2,
+# Left join to city_id as city2 and country_id as count1 from city table on city1 and city2,
+# Left join to country_id as count2 and country from country table on count1 and count 2,
+# Finally only get columns customer_id, addr1, city1, country
+countries <- dbGetQuery(sakila, 
+                        "SELECT customer_id, address_id as addr1, city1, country FROM customer
+                        LEFT JOIN (SELECT address_id as addr2, city_id as city1 FROM address) ON addr1 = addr2
+                        LEFT JOIN (SELECT city_id as city2, country_id as count1 FROM city) ON city1 = city2
+                        LEFT JOIN (SELECT country_id as count2, country from country) ON count1 = count2")  
+
+# Turns table of counts of each country into dataframe, prints out values of country where table counts equalled 13
+countries2 <- as.data.frame(table(countries$country))
+countries2$Var1[countries2$Freq == 13]
+```
+
+```{r}
+# SQL only method
+# From customer table select address_id as addr1, 
+# Left join to address_id as addr2 and city_id as city1 from address table matching addr1 to addr2,
+# Left join to city_id as city2 and country_id as count1 from city table matching city1 to city2,
+# Left join to country_id as count2 and country from country table matching count1 to count2,
+# Aggregate by country
+# Finally only select country, counts of each country, and address_id
+dbGetQuery(sakila,
+           "SELECT country, count(country), address_id as addr1 FROM customer
+           LEFT JOIN (SELECT address_id as addr2, city_id as city1 FROM address) ON addr1 = addr2
+           LEFT JOIN (SELECT city_id as city2, country_id as count1 FROM CITY) ON city1 = city2
+           LEFT JOIN (SELECT country_id as count2, country from country) ON count1 = count2
+           GROUP BY country
+           HAVING count(country) == 13")
+```
+
