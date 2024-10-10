@@ -90,7 +90,7 @@ rsq3 <- 1 - (sum((model3$fitted.values - model3$y)^2) / sum((model3$y - mean(mod
 kable(matrix(c(ratio1, ratio2, ratio3, length(model1$fitted.values), length(model2$fitted.values), length(model3$fitted.values), rsq1, rsq2, rsq3, model1$aic, model2$aic, model3$aic), nrow = 3, ncol = 4), col.names = c('Est. Odds Ratio', 'Sample Size', 'Pseudo-R^2', 'AIC'))
 ```
 
-d.
+d.  
 
 ```{r}
 # Compute odds for all of model3
@@ -112,13 +112,14 @@ t.test(odds ~ gender)
 # Z-test for difference in proportions to determine if proportion of wearers of glasses/contacts for distance differs between men and women
 prop.test(c(n_glasses_male, n_glasses_female), c(n_male, n_female))
 ```
+
 The t-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the mean of odds for wearing glasses/contacts for distance are different between men and women, the odds between men and women are different.
 
 The z-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the proportion of glasses/contacts wearers for distance are different between men and women.
 
 ### Problem 2 - Sakila
 
-a.
+a.  
 
 ```{r}
 # Load sakila data
@@ -132,7 +133,7 @@ dbGetQuery(sakila, "SELECT release_year, COUNT(release_year)
            GROUP BY release_year")
 ```
 
-b.
+b.  
 
 ```{r}
 # Use SQL store as df method 
@@ -180,7 +181,7 @@ dbGetQuery(sakila,
            LIMIT 1")
 ```
 
-c.
+c.  
 
 ```{r}
 # Use SQL store as df method 
@@ -217,3 +218,110 @@ dbGetQuery(sakila,
            HAVING count(country) == 13")
 ```
 
+### Problem 3 - US Records
+
+a.  
+
+```{r}
+us500 <- read.csv('Datasets/us-500.csv')
+
+# Use grepl string match function from dplyr
+library(dplyr)
+
+# Iterate through all emails in us500, if the email contains ".com", add 1 to count
+count = 0
+for (email in us500$email) {
+  if (grepl('.com', email) == TRUE) {
+    count = count + 1
+  }
+}
+count
+```
+
+b.  
+
+```{r}
+# Iterates through each email, if part before @ contains an alphabet or number increases count by 1
+count = 0
+for (email in us500$email) {
+  address <- unlist(strsplit(email, split = '@'))[1]
+  address <- tolower(address)
+  address_split <- unlist(strsplit(address, split = ''))
+  
+  for (chara in address_split) {
+    if (grepl('[[:alnum:]]', chara) == FALSE) {
+        count = count + 1
+        break
+    } else {
+      next
+    }
+  }
+  
+}
+count/length(us500$email)
+```
+
+c.  
+
+```{r}
+# Get area codes for phone1
+# Iterate through each number, split by "-", unlist into vector and save first entry
+area1 <- rep(0, length(us500$phone1))
+i = 1
+for (num1 in us500$phone1) {
+  area1[i] <- unlist(strsplit(num1, split = '-'))[1]
+  i = i + 1
+}
+
+# Get area codes for phone2
+# Iterate through each number, split by "-", unlist into vector and save first entry
+area2 <- rep(0, length(us500$phone2))
+i = 1
+for (num2 in us500$phone2) {
+  area2[i] <- unlist(strsplit(num2, split = '-'))[1]
+  i = i + 1
+}
+
+# Combine area codes into 1 dataframe, print first 5 of area codes by decreasing order of frequency
+areas <- c(area1, area2)
+areas_df <- as.data.frame(table(areas))
+areas_df$areas[order(areas_df$Freq, decreasing = TRUE)][1:5]
+```
+
+d.  
+
+```{r}
+# Get apartment addresses
+# All apartments seem to have their number start with "#"
+apartments <- subset(us500, grepl('#', address))
+
+# Iterate through apartment addresses, split addres by "#", convert to vector and store appartment number (the part after "#")
+appt_n_vec <- rep(0, length(apartments$address))
+i = 1
+for (addr in apartments$address) {
+  appt_n <- unlist(strsplit(addr, split = '#'))[2]
+  appt_n_vec[i] <- as.numeric(appt_n)
+  i = i + 1
+}
+
+# Histogram of stored numbers
+hist(log(appt_n_vec))
+```
+
+e.  
+
+```{r}
+# Iterate through each appartment number, split numbers into individual digits, convert into vectors and store first digit
+n1_vec <- rep(0, length(appt_n_vec))
+i = 1
+for (n in appt_n_vec) {
+  n1 <- unlist(strsplit(as.character(n), split = ''))[1]
+  n1_vec[i] <- as.numeric(n1)
+  i = i + 1
+}
+
+# Histogram of stored first digits
+hist(n1_vec)
+```
+
+No this data does not seem to pass as real data, as the apartment numbers first digit, aside from "1", do not decrease in frequency as the digit's value increases.
