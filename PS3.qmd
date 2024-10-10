@@ -1,0 +1,117 @@
+---
+title: "Stats 506 Problem Set 3"
+format: html
+editor: visual
+---
+
+### Problem 1 - Vision
+
+a.  
+
+```{r}
+# Uses read_xpt from haven library to read in .XPT files
+library(haven)
+vix_d <- read_xpt('Datasets/VIX_D.XPT')
+demo_d <- read_xpt('Datasets/DEMO_D.XPT')
+
+# Default merge function from R
+data <- merge(demo_d, vix_d, by = 'SEQN')
+
+# Get number of rows from dimensions of merged dataframe
+dim(data)[1]
+```
+
+b.  
+
+```{r}
+# Uses kable from knitr
+library(knitr)
+# Puts in the 1 X 10 matrix containing the estimated proportions, assigns column names vectory using col.names, each age bracket is 8 years since we need 10 of them and most humans live to about 80.
+kable(matrix(c(.5, .25, .3, .35, .4, .45, .5, .55, .6, .65), nrow = 1, ncol = 10), col.names = c('0-8', '9-16', '17-24', '25-32', '33-40', '41-48', '49-56', '57-64', '65-72', '73-80'))
+```
+
+c.  
+
+```{r}
+# Only keep variables that are needed
+# 5 = gender, 6 = age in years, 9 = ethnicity, 22 = poverty income ratio, 57 = needs glasses/contacts for distance
+data2 <- data[, c(5, 6, 9, 22, 57)]
+
+# Remove "Don't know" from needs glasses/contacts
+data2 <- subset(data2, VIQ220 != 9)
+
+# Make gender 0 and 1
+data2$RIAGENDR <- data2$RIAGENDR - 1
+
+# Create separate variables for each enthnicity
+# Other race is treated as the base
+  # 1 if RIDRETH1 = 1 (Mexican American), 0 otherwise
+mex_am <- rep(0, dim(data2)[1])
+mex_am[data2$RIDRETH1 == 1] <- 1
+  # 1 if RIDRETH1 = 2 (Other Hispanic), 0 otherwise
+other_his <- rep(0, dim(data2)[1])
+other_his[data2$RIDRETH1 == 2] <- 1
+  # 1 if RIDRETH1 = 3 (non-Hispanic White), 0 otherwise
+white <- rep(0, dim(data2)[1])
+white[data2$RIDRETH1 == 3] <- 1
+  # 1 if RIDRETH1 = 4 (non-Hispanic Black), 0 otherwise
+black <- rep(0, dim(data2)[1])
+black[data2$RIDRETH1 == 4] <- 1
+  # If RIDRETH1 = 5 (Other Race) all of these variables = 0
+  # Add these variables to the data
+data2$mex_am <- mex_am
+data2$other_his <- other_his
+data2$white <- white
+data2$black <- black
+
+# Make needs glasses/contacts for distance 0 and 1
+data2$VIQ220 <- data2$VIQ220 - 1
+
+# Create log reg models
+  # Age as predictor
+model1 <- glm(VIQ220 ~ RIDAGEYR, family = 'binomial', data2)
+  # Age, race, and gender as predictors
+model2 <- glm(VIQ220 ~ RIDAGEYR + mex_am + other_his + white + black + RIAGENDR, family = 'binomial', data2)
+  # Age, race, gender, povery income ratio as predictors
+model3 <- glm(VIQ220 ~ RIDAGEYR + mex_am + other_his + white + black + RIAGENDR + INDFMPIR, family = 'binomial', data2)
+
+# Create strings for each odds ratio
+ratio1 <- paste('exp(', model1$coefficients[1], ' + ', model1$coefficients[2], '(Age)', ')', sep = '')
+ratio2 <- paste('exp(', model2$coefficients[1], ' + ', model2$coefficients[2], '(Age)', ' + ', model2$coefficients[3], '(is Mexican American)', ' + ', model2$coefficients[4], '(is Other Hispanic)', ' + ', model2$coefficients[5], '(is White)', ' + ', model2$coefficients[6], '(is Black)', ' + ', model2$coefficients[7], '(is Female)', ')', sep = '')
+ratio3 <- paste('exp(', model2$coefficients[1], ' + ', model2$coefficients[2], '(Age)', ' + ', model2$coefficients[3], '(is Mexican American)', ' + ', model2$coefficients[4], '(is Other Hispanic)', ' + ', model2$coefficients[5], '(is White)', ' + ', model2$coefficients[6], '(is Black)', ' + ', model2$coefficients[7], '(is Female)', ' + ', model3$coefficients[8], '(Poverty Income Ratio)', ')', sep = '')
+
+# Get pseudo R^2
+  # Calculated using Elfron's (https://stats.oarc.ucla.edu/other/mult-pkg/faq/general/faq-what-are-pseudo-r-squareds/)
+rsq1 <- 1 - (sum((model1$fitted.values - model1$y)^2) / sum((model1$y - mean(model1$y))^2))
+rsq2 <- 1 - (sum((model2$fitted.values - model2$y)^2) / sum((model2$y - mean(model2$y))^2))
+rsq3 <- 1 - (sum((model3$fitted.values - model3$y)^2) / sum((model3$y - mean(model3$y))^2))
+
+# Create table
+kable(matrix(c(ratio1, ratio2, ratio3, length(model1$fitted.values), length(model2$fitted.values), length(model3$fitted.values), rsq1, rsq2, rsq3, model1$aic, model2$aic, model3$aic), nrow = 3, ncol = 4), col.names = c('Est. Odds Ratio', 'Sample Size', 'Pseudo-R^2', 'AIC'))
+```
+
+d.
+
+```{r}
+# Compute odds for all of model3
+odds <- model3$fitted.values / (1 - model3$fitted.values)
+
+# Get male and female groups
+gender <- rep('Male', length(odds))
+gender[model3$model[, 7] == 1] <- 'Female' # model3$odel gives us all variables, 1st column is what we're predicting, second is age, 3-6 are the races, 7 is gender
+
+# Get number of male glasses wearers, number of female glasses wearers, number of males, number of females
+n_glasses_male <- sum(model3$model[, 1][model3$model[, 7] == 0]) # Since glasses wearers are just stored as 1 and non-wearers are 0 we can just find the sum to get the total
+n_glasses_female <- sum(model3$model[, 1][model3$model[, 7] == 1])
+n_male <- length(gender[gender == 'Male'])
+n_female <- length(gender[gender == 'Female'])
+  
+# T-test for difference in means to determine if odds ratios differ between men and women
+t.test(odds ~ gender)
+
+# Z-test for difference in proportions to determine if proportion of wearers of glasses/contacts for distance differs between men and women
+prop.test(c(n_glasses_male, n_glasses_female), c(n_male, n_female))
+```
+The t-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the mean of odds for wearing glasses/contacts for distance are different between men and women, the odds between men and women are different.
+
+The z-test has a p-value of 2.2e-16, thus at a significance value of 0.05 we reject the null hypothesis, the proportion of glasses/contacts wearers for distance are different between men and women.
