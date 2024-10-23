@@ -1,0 +1,89 @@
+---
+title: "Stats 506 Problem Set 4"
+format: html
+editor: visual
+---
+
+### Problem 1 - Tidyverse
+
+```{r}
+library(nycflights13)
+```
+
+a.  
+
+```{r}
+# Load in airport and departure data
+airports <- nycflights13::airports
+flights <- nycflights13::flights
+
+library(dplyr)
+
+## Table of departure delays
+# Remove fights with unknown departure delays
+flights2 <- filter(flights, is.na(dep_delay) == FALSE)
+
+# Get mean and median departure delays for each origin in flights
+dep_delays <- flights2 %>%
+  group_by(origin) %>%
+  summarise(dep_delay_mean = mean(dep_delay), dep_delay_median = median(dep_delay)) %>%
+  arrange(desc(dep_delay_mean)) # Sort by mean departure delay
+
+# Join dataframe of airports' code and name columns to departure delays dataframe such that nly airport codes present in origin column of departure delays dataframe are kept
+dep_delays <- inner_join(airports[c('faa', 'name')], dep_delays, by = join_by(faa == origin))
+
+# Remove airport codes
+dep_delays <- mutate(dep_delays, faa = NULL)
+
+# Print dataframe with mean and median delays and airport names as a tibble
+print(as_tibble(dep_delays), n = dim(dep_delays)[1])
+
+
+## Table of arrival delays
+# Remove flights that never arrived
+flights3 <- filter(flights, is.na(arr_delay) == FALSE)
+
+# Get mean and median arrival times for each destination
+arr_delays <- flights3 %>% 
+  group_by(dest) %>%
+  summarise(n_arrivals = length(arr_delay), arr_delay_mean = mean(arr_delay), arr_delay_median = median(arr_delay)) %>%
+  arrange(desc(arr_delay_mean)) # Sort by descending mean arrival delay
+
+# Remove destinations with less than 10 arrivals
+arr_delays <- filter(arr_delays, n_arrivals >= 10)
+
+# Join dataframe of airports' codes and names to arr_delays matching airports$faa column to arr_delays$dest column
+arr_delays <- inner_join(airports[c('faa', 'name')], arr_delays, by = join_by(faa == dest))
+
+# Remove airport codes and number of arriving flights
+arr_delays <- mutate(arr_delays, faa = NULL, n_arrivals = NULL)
+
+# Print arr_delays as tibble
+print(as_tibble(arr_delays), n = dim(arr_delays)[1])
+```
+
+b.  
+
+```{r}
+# Load in plane data
+planes <- nycflights13::planes
+
+# Get number of flights for each tailnum
+n_flights_df <- flights %>%
+  group_by(tailnum) %>%
+  summarise(n_flights = length(flight))
+
+# For all rows in n_flights_df join columns tailnum, manufacturer, model, and speed from planes
+n_flights_df <- right_join(planes[, c('tailnum', 'manufacturer', 'model', 'speed')], n_flights_df, by = 'tailnum')
+
+# Remove missing speeds
+n_flights_df <- filter(n_flights_df, is.na(speed) == FALSE)
+
+# Get average speed for all models of aircraft
+n_flights_df <- n_flights_df %>%
+  group_by(manufacturer, model) %>%
+  summarise(avg_speed = mean(speed), n_flights = sum(n_flights), .groups = 'keep') %>%
+  arrange(desc(avg_speed)) # Sort by descending average speed
+
+print(as_tibble(n_flights_df[1, ]))
+```
