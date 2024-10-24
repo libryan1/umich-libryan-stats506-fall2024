@@ -230,3 +230,64 @@ get_temp("November", 1999, data =nnmaps, celsius = TRUE,
          })
 ```
 
+### Problem 3 - Visualization
+
+```{r}
+art_sales <- read.csv('Datasets/df_for_ml_improved_new_market.csv')
+library(ggplot2)
+```
+a. 
+
+```{r}
+ggplot(art_sales, aes(x = factor(year), y = price_usd)) + geom_point() + 
+  labs(title = 'Prices of Art (USD) vs Year') + xlab('Year') + ylab('Price (USD)') + theme_bw()
+```
+From the above graph we see that over the years the maximum of art prices has increased significantly.  Overall this does suggest that art prices have increased over time, but it is important to note that there are many art pieces in 2012 (the most recent year) within the range of the prices for art from 1997.  The variability could have just increased, while the actual overall prices for art may have remained constant.
+
+b.
+
+```{r}
+# Creates a column containing the genre of each art
+  # Initialize vector that will store this column's information
+genre <- rep(0, dim(art_sales)[1])
+
+  # Iterate through each art 
+for (i in 1:dim(art_sales)[1]) {
+    # Initialize vector that will store all of a possible work of art's genres
+  genre_vec <- rep(NA, 5)
+  
+    # If art has a 1 in one of these categories, add it to genre_vec vector in 
+    # a specific index (1 is for photography, 2 for print, etc.)
+  ifelse(art_sales$Genre___Photography[i] == 1, genre_vec[1] <- 'Photography', NA)
+  ifelse(art_sales$Genre___Print[i] == 1, genre_vec[2] <- 'Print', NA)
+  ifelse(art_sales$Genre___Sculpture[i] == 1, genre_vec[3] <- 'Sculpture', NA)
+  ifelse(art_sales$Genre___Painting[i] == 1, genre_vec[4] <- 'Painting', NA)
+  ifelse(art_sales$Genre___Others[i] == 1, genre_vec[5] <- 'Others', NA)
+  
+    # Remove all indices that were NA (art piece didn't have it as a genre)
+  genre_vec <- genre_vec[!is.na(genre_vec)]
+  
+    # Combine into a single string that classifies art based on which genres it
+    # was (ie. a painting and others is Painting/Others)
+  genre_str <- paste(genre_vec, collapse = '/')
+  
+    # Add genre string to genre vector
+  genre[i] <- genre_str
+}
+  
+  # Add genre column
+art_sales$genre <- genre
+
+ggplot(art_sales, aes(x = factor(year), fill = genre)) + geom_bar(position = 'fill') + 
+  labs(title = 'Proportion of Sold Art Genres by Year') + xlab('Year') + ylab('Proportion') + theme_minimal()
+```
+The distribution of genre of sales does appear to change over time.  From the chart we can see that as the years went on the proportion of art sold classified as both "Painting" and "Others" has decreased significantly, from comprising almost half of art sold in 1997 to less than a quarter in 2012.  Additionally, the proportion of art that were "Print" only started to be sold starting in 2000.  Similarly, art that were only "Others" only started to be sold in 2007.  "Photography" has also increased since 1997, going from less than a quarter of art sales in 1997 to over a quarter in 2012.  "Sculpture" sales seem to have either remained constant or changed very little between 1997 and 2012.
+
+c.
+
+```{r}
+ggplot(art_sales, aes(x = year, y = price_usd)) + geom_point() + 
+  facet_wrap(vars(genre), strip.position = 'bottom') + 
+  labs(title = 'Art Sale Price (USD) vs Year by Art Genre') + xlab('Year') + ylab('Price (USD)')
+```
+For all of the genres there is a common pattern that the prices the art was being sold for in 1997, many art pieces are being sold for a similar price in 2012.  However, for all of the genres except "Others", there is increased variability as more and more art prices are being sold at significantly higher values.  This is especially evident in photography, which shows the most variability with generally higher prices and more frequent pieces with higher prices.  Painting/Others and Sculpture are middle of the pack, with Print pieces while being higher than the first year they appear, not increasing as much as compared to the other three.  Overall this suggests that for all art genres except "Others" prices have increased, especially for "Photography" pieces.
