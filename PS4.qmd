@@ -26,14 +26,17 @@ flights2 <- filter(flights, is.na(dep_delay) == FALSE)
 # Get mean and median departure delays for each origin in flights
 dep_delays <- flights2 %>%
   group_by(origin) %>%
-  summarise(dep_delay_mean = mean(dep_delay), dep_delay_median = median(dep_delay)) %>%
-  arrange(desc(dep_delay_mean)) # Sort by mean departure delay
+  summarise(dep_delay_mean = mean(dep_delay), dep_delay_median = median(dep_delay)) 
 
-# Join dataframe of airports' code and name columns to departure delays dataframe such that nly airport codes present in origin column of departure delays dataframe are kept
+# Join dataframe of airports' code and name columns to departure delays dataframe such that 
+# only airport codes present in origin column of departure delays dataframe are kept
 dep_delays <- inner_join(airports[c('faa', 'name')], dep_delays, by = join_by(faa == origin))
 
 # Remove airport codes
 dep_delays <- mutate(dep_delays, faa = NULL)
+
+# Sort by descending mean dep delay
+dep_delays <- arrange(dep_delays, desc(dep_delay_mean))
 
 # Print dataframe with mean and median delays and airport names as a tibble
 print(as_tibble(dep_delays), n = dim(dep_delays)[1])
@@ -52,11 +55,15 @@ arr_delays <- flights3 %>%
 # Remove destinations with less than 10 arrivals
 arr_delays <- filter(arr_delays, n_arrivals >= 10)
 
-# Join dataframe of airports' codes and names to arr_delays matching airports$faa column to arr_delays$dest column
+# Join dataframe of airports' codes and names to arr_delays matching airports$faa column to 
+# arr_delays$dest column
 arr_delays <- inner_join(airports[c('faa', 'name')], arr_delays, by = join_by(faa == dest))
 
 # Remove airport codes and number of arriving flights
 arr_delays <- mutate(arr_delays, faa = NULL, n_arrivals = NULL)
+
+# Sort by descending mean arr delay
+arr_delays <- arrange(arr_delays, desc(arr_delay_mean))
 
 # Print arr_delays as tibble
 print(as_tibble(arr_delays), n = dim(arr_delays)[1])
@@ -73,7 +80,8 @@ n_flights_df <- flights %>%
   group_by(tailnum) %>%
   summarise(n_flights = length(flight))
 
-# For all rows in n_flights_df join columns tailnum, manufacturer, model, and speed from planes
+# For all rows in n_flights_df join to columns tailnum, manufacturer, model, and speed from 
+# planes dataframe
 n_flights_df <- right_join(planes[, c('tailnum', 'manufacturer', 'model', 'speed')], n_flights_df, by = 'tailnum')
 
 # Remove missing speeds
@@ -85,5 +93,140 @@ n_flights_df <- n_flights_df %>%
   summarise(avg_speed = mean(speed), n_flights = sum(n_flights), .groups = 'keep') %>%
   arrange(desc(avg_speed)) # Sort by descending average speed
 
+# I kept the manufacturer column because it is typical to include the name of the manufacturer 
+# when referring to planes e.g. Boeing 737 MAX
 print(as_tibble(n_flights_df[1, ]))
 ```
+
+### Problem 2 - get_temp()
+
+```{r}
+# Load in data
+nmmaps <- read.csv('Datasets/chicago-nmmaps.csv')
+
+# Initialize function
+get_temp <- function(month, year, data, celsius = FALSE, average_fn = mean) {
+  
+  
+  # Sanitizing month
+    # Get valid month strings
+  months = c('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec', 
+             'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 
+             'september', 'october', 'november', 'december') 
+  
+    # Validate numeric month input (number or string)
+      # Ensure numeric inputs are a valid month
+  if (is.numeric(month) == TRUE) {
+    if (month < 1 | month > 12) {
+      stop('Invalid month')
+    }
+      # Ensure numerical strings are a valid month
+  } else if (grepl('[^0-9.]', month) == FALSE) {
+    if (as.numeric(month) < 1 | as.numeric(month) > 12) {
+      stop('Invalid month')
+    }
+      # Ensure strings are a valid month (not case-sensitive)
+  } else if (tolower(month) %in% months == FALSE) {
+    stop('Invalid month')
+  }
+  
+  
+  # Sanitizing data
+    # Must be sanitized before year or checking for range doesn't work
+  if (is.data.frame(data) == FALSE) {
+    stop('data must be a data.frame')
+  }
+  
+  
+  # Sanitizing year
+    # Ensure numeric year input exists in data
+  if (is.numeric(year) == TRUE) {
+    if (year %in% data$year == FALSE) {
+      stop('year outside of range')
+    }
+    # Ensure numerical string year exists in data
+  } else if (grepl('[^0-9.]', year) == FALSE) {
+    if (as.numeric(year) %in% data$year == FALSE) {
+      stop('year outside of range')
+    }
+    # Non numerical strings are not a valid year
+  } else if (grepl('[^0-9.]', year) == TRUE) {
+    stop('Invalid year')
+  }
+  
+  
+  # Sanitizing celsius
+  if (is.logical(celsius) == FALSE) {
+    stop('celsius must be logical')
+  }
+  
+  
+  # Sanitizing average_fn
+  if (is.function(average_fn) == FALSE) {
+    stop('average_fn must be a valid function')
+  }
+  
+  
+  # Convert to celsius if specified
+  if (celsius == TRUE) {
+   data <- mutate(data, temp = (temp - 32) / 1.8)
+  }
+  
+  
+  # Group by month and year, compute avg temps
+  data <- data %>% 
+    group_by(month, month_numeric, year) %>%
+    summarise(avg_temp = average_fn(temp), .groups = 'keep')
+  
+  
+  # Return avg temp for specified month and year
+    # Convert year to numeric if not
+      # All years are represented using numeric symbols
+  if (is.numeric(year) == FALSE) {
+    year_filter <- as.numeric(year)
+  } else {
+    year_filter <- year
+  }
+
+    # Return correct avg temp by month
+      # If month is numeric
+  if (is.numeric(month) == TRUE) {
+    month_filter <- month
+    return(filter(data, month_numeric == month_filter & year == year_filter)$avg_temp)
+      # If month is numerical string
+  } else if (grepl('[^0-9]', month) == FALSE) {
+    month_filter <- as.numeric(month)
+    return(filter(data, month_numeric == month_filter & year == year_filter)$avg_temp)
+      # If month is month name string
+  } else {
+      # Get suffixes of each month and its representation in month column
+    month_vec <- c('jan' = 'Jan', 'feb' = 'Feb', 'mar' = 'Mar', 'apr' = 'Apr', 'may' = 'May', 
+                   'jun' = 'Jun', 'jul' = 'Jul', 'aug' = 'Aug', 'sep' = 'Sep', 'oct' = 'Oct', 
+                   'nov' = 'Nov', 'dec' = 'Dec')
+      # Iterate through possible suffixes, if month input has suffix return avg temp for that 
+      # month
+    for (month_str in names(month_vec)) {
+      if (grepl(month_str, tolower(month)) == TRUE)
+        return(filter(data, month == month_vec[month_str] & year == year_filter)$avg_temp)
+    }
+  }
+}
+```
+
+```{r, error=TRUE}
+# Load in data again as nnmaps because that what this code uses as name of dataset
+nnmaps <- read.csv('Datasets/chicago-nmmaps.csv')
+
+# Testing
+get_temp("Apr", 1999, data = nnmaps)
+get_temp("Apr", 1999, data = nnmaps, celsius = TRUE)
+get_temp(10, 1998, data = nnmaps, average_fn = median)
+get_temp(13, 1998, data = nnmaps)
+get_temp(2, 2005, data = nnmaps)
+get_temp("November", 1999, data =nnmaps, celsius = TRUE,
+         average_fn = function(x) {
+           x %>% sort -> x
+           x[2:(length(x) - 1)] %>% mean %>% return
+         })
+```
+
