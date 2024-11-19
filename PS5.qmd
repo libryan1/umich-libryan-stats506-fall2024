@@ -1,0 +1,179 @@
+---
+title: "Stats 506 Problem Set 5"
+format: html
+editor: visual
+---
+
+### Problem 1 - OOP Programming
+
+a.  
+
+```{r}
+# GCD and LCM functions (Rcpp)
+  # Uses gcd and lcm from std library
+library(Rcpp)
+#' Function to compute the greatest common denominator between two numbers
+#' 
+#' @param n1 the first number
+#' @param n2 the second number
+#' @return The greatest common denominator
+get_gcd <- function(n1, n2) {
+  return(evalCpp(paste('std::gcd(', n1, ',', n2, ')')))
+}
+
+#'Function to compute the lowest common multiple between two numbers
+#'
+#' @param n1 the first number
+#' @param n2 the second number
+#' return The lowest common multiple
+get_lcm <- function(n1, n2) {
+  return(evalCpp(paste('std::lcm(', n1, ',', n2, ')')))
+}
+
+
+# Define rational
+  # a is numerator, b is denominator
+setClass('rational',
+         slots = c(a = 'numeric', b = 'numeric')
+         )
+
+
+##' Validator
+##' Ensures that denominator of rational object is never 0
+##' @param object A rational object
+setValidity('rational', function(object) {
+  if (object@b == 0) {
+    stop('b must be nonzero')
+  } 
+})
+
+
+##' Show method
+##' Displays the rational object in the form of a/b
+##' @param object A rational object
+setMethod('show', 'rational', function(object) {
+  return(paste(object@a, '/', object@b, sep = ''))
+  })
+
+
+# Simplify method
+  # Define simplify as a generic function
+setGeneric('simplify', function(object) {
+  standardGeneric('simplify')
+})
+
+##' Divide numerator and denominator by their GCD to simplify, returns new simpler rational
+##' @param object A rational object
+##' @return The simplified rational
+setMethod('simplify', 'rational', function(object){
+  gcd <- get_gcd(object@a, object@b)
+  return(new('rational', a = object@a/gcd, b = object@b/gcd))
+})
+
+
+# Quotient method
+  # Define quotient as a generic function
+setGeneric('quotient', function(object, ...) {
+  standardGeneric('quotient')
+})
+
+##' Print quotient with specified digits, return without printing full quotient
+##' @param object A rational object
+##' @return The computed quotient
+setMethod('quotient', 'rational', function(object, digits = NULL) {
+  print(object@a/object@b, digits = digits)
+  invisible(object@a/object@b)
+})
+
+
+##' Addition method
+##' Use LCM to get simplest denominator and multiply numerators accordingly,
+##' then add
+##' @param e1 The first rational object
+##' @param e2 The second rational object
+##' @return The sum
+setMethod('+', 'rational', function(e1, e2) {
+  lcm <- get_lcm(e1@b, e2@b)
+  mult1 <- lcm / e1@b
+  mult2 <- lcm / e2@b
+  
+  sum_a <- (e1@a * mult1) + (e2@a * mult2)
+  return(new('rational', a = sum_a, b = lcm))
+})
+
+
+##' Subtraction method
+##' Use LCM to get simplest denominator and multiply numerators accordingly,
+##' then subtract
+##' @param e1 The first rational object
+##' @param e2 The second rational object
+##' @return The difference
+setMethod('-', 'rational', function(e1, e2) {
+  lcm <- get_lcm(e1@b, e2@b)
+  mult1 <- lcm / e1@b
+  mult2 <- lcm / e2@b
+  
+  diff_a <- (e1@a * mult1) - (e2@a * mult2)
+  return(new('rational', a = diff_a, b = lcm))
+})
+
+
+##' Multiplication method
+##' Multiply numerators together, denominators together
+##' @param e1 The first rational object
+##' @param e2 The second rational object
+##' @return The product
+setMethod('*', 'rational', function(e1, e2) {
+  return(new('rational', a = e1@a * e2@a, b = e1@b * e2@b))
+})
+
+
+##' Division method
+##' Multiply 1st numerator by 2nd denominator, 1st denominator by 2nd numerator
+##' @param e1 The first rational object
+##' @param e2 The second rational object
+##' @return The quotient
+setMethod('/', 'rational', function(e1, e2) {
+  return(new('rational', a = e1@a * e2@b, b = e1@b * e2@a))
+})
+```
+
+b.
+
+```{r}
+r1 <- new('rational', a = 24, b = 6)
+r2 <- new('rational', a = 7, b = 230)
+r3 <- new('rational', a = 0, b = 4)
+```
+
+```{r, error=TRUE}
+r1
+r3
+r1 + r2
+r1 - r2
+r1 * r2
+r1 / r2
+r1 + r3
+r1 * r3
+r2 / r3
+quotient(r1)
+quotient(r2)
+quotient(r2, digits = 3)
+quotient(r2, digits = 3.14)
+quotient(r2, digits = "avocado")
+q2 <- quotient(r2, digits = 3)
+q2
+quotient(r3)
+simplify(r1)
+simplify(r2)
+simplify(r3)
+```
+
+c.
+
+```{r, error=TRUE}
+zero_denom <- new('rational', a = 1, b = 0) # 0 in denominator
+nonnum <- new('rational', a = 'alpha', b = 'beta') # Non-numerics 
+```
+
+
