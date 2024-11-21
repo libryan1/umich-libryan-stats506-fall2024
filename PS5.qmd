@@ -1,6 +1,8 @@
 ---
 title: "Stats 506 Problem Set 5"
-format: html
+format:
+    html: 
+       embed-resources: true
 editor: visual
 ---
 
@@ -176,4 +178,266 @@ zero_denom <- new('rational', a = 1, b = 0) # 0 in denominator
 nonnum <- new('rational', a = 'alpha', b = 'beta') # Non-numerics 
 ```
 
+### Problem 2 - plotly
+
+a.
+
+```{r}
+library(plotly)
+library(ggplot2)
+
+# Copied code from PS4
+art_sales <- read.csv('Datasets/df_for_ml_improved_new_market.csv')
+
+## Data Cleaning
+# Creates a column containing the genre of each art
+  # Initialize vector that will store this column's information
+genre <- rep(0, dim(art_sales)[1])
+
+  # Iterate through each art 
+for (i in 1:dim(art_sales)[1]) {
+    # Initialize vector that will store all of a possible work of art's genres
+  genre_vec <- rep(NA, 5)
+  
+    # If art has a 1 in one of these categories, add it to genre_vec vector in 
+    # a specific index (1 is for photography, 2 for print, etc.)
+  ifelse(art_sales$Genre___Photography[i] == 1, genre_vec[1] <- 'Photography', NA)
+  ifelse(art_sales$Genre___Print[i] == 1, genre_vec[2] <- 'Print', NA)
+  ifelse(art_sales$Genre___Sculpture[i] == 1, genre_vec[3] <- 'Sculpture', NA)
+  ifelse(art_sales$Genre___Painting[i] == 1, genre_vec[4] <- 'Painting', NA)
+  ifelse(art_sales$Genre___Others[i] == 1, genre_vec[5] <- 'Others', NA)
+  
+    # Remove all indices that were NA (art piece didn't have it as a genre)
+  genre_vec <- genre_vec[!is.na(genre_vec)]
+  
+    # Combine into a single string that classifies art based on which genres it
+    # was (ie. a painting and others is Painting/Others)
+  genre_str <- paste(genre_vec, collapse = '/')
+  
+    # Add genre string to genre vector
+  genre[i] <- genre_str
+}
+  
+  # Add genre column
+art_sales$genre <- genre
+
+gg <- ggplot(art_sales, aes(x = factor(year), fill = genre)) + geom_bar(position = 'fill') + 
+  labs(title = 'Proportion of Sold Art Genres by Year') + xlab('Year') + 
+  ylab('Proportion') + theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45))
+ggplotly(gg)
+```
+
+b.
+
+```{r}
+updatemenus <- list(list(
+  y = 1,
+  # All art sales
+  buttons = list(
+    list(
+      label = 'Overall',
+      method = 'update',
+      args = list(
+        list(visible = list(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE))
+        # I cannot for the life of me figure out how to get these unique titles 
+        # for each plot to work.  For some reason only this on and the one "by 
+        # genre" worked, the rest didn't
+        #list(title = 'Sales Price vs Year') 
+      )
+    ),
+    # All art sales, colored by genre
+    list(
+      label = 'By Genre',
+      method = 'update',
+      args = list(
+        list(visible = list(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE))
+        #list(title = 'Sales Price vs Year by Genre')
+      )
+    ),
+    # Only paintings/other
+    list(
+      label = 'Paintings/Other',
+      method = 'buttons',
+      args = list(
+        list(visible = c(FALSE, TRUE, FALSE, FALSE, FALSE, FALSE))
+        #list(title = 'Sales Price vs Year for Paintings/Other')
+      )
+    ),
+    # Only sculptures
+    list(
+      label = 'Sculpture',
+      method = 'buttons',
+      args = list(
+        list(visible = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE))
+        #list(title = 'Sales Price vs Year for Sculpture')
+      )
+    ),
+    # Only photography
+    list(
+      label = 'Photography',
+      method = 'buttons',
+      args = list(
+        list(visible = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE))
+        #list(title = 'Sales Price vs Year for Photography')
+      )
+    ),
+    # Only print
+    list(
+      label = 'Print',
+      method = 'buttons',
+      args = list(
+        list(visible = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE))
+        #list(title = 'Sales Price vs Year for Print')
+      )
+    ),
+    # Only others
+    list(
+      label = 'Others',
+      method = 'buttons',
+      args = list(
+        list(visible = c(FALSE, FALSE, FALSE, FALSE, FALSE, TRUE))
+        #list(title = 'Sales Price vs Year for Others')
+      )
+    )
+  )
+))
+
+# Creates the plots for the buttons, only the overall is visible.
+p <- plot_ly() %>%
+  add_markers(data = art_sales, x = ~year, y = ~price_usd) %>%
+  add_markers(data = subset(art_sales, genre == 'Painting/Others'), x = ~year, y = ~price_usd, 
+              visible = FALSE, name = 'Painting/Others') %>%
+  add_markers(data = subset(art_sales, genre == 'Sculpture'), x = ~year, y = ~price_usd, 
+              visible = FALSE, name = 'Sculpture') %>%
+  add_markers(data = subset(art_sales, genre == 'Photography'), x = ~year, y = ~price_usd, 
+              visible = FALSE, name = 'Photography') %>%
+  add_markers(data = subset(art_sales, genre == 'Print'), x = ~year, y = ~price_usd, 
+              visible = FALSE, name = 'Print') %>%
+  add_markers(data = subset(art_sales, genre == 'Others'), x = ~year, y = ~price_usd, 
+              visible = FALSE, name = 'Others')
+
+# Adds title and axis labels, range restricted to make plots easier to compare 
+# with one another
+p <- p %>% layout(title = 'Sales Price vs Year', yaxis = 
+                    list(title = 'Sales Price (USD)', range = c(-1000, 1550000)), 
+                  xaxis = list(title = 'Year', range = c(1996, 2013)), 
+                  updatemenus = updatemenus) 
+  
+p
+```
+
+### Problem 3 - data.table
+
+```{r}
+library(nycflights13)
+```
+
+a.
+
+```{r}
+library(data.table)
+library(tibble)
+
+# Load in airport and departure data
+airports <- nycflights13::airports
+flights <- nycflights13::flights
+
+# Convert dataframes to data tables
+airports <- as.data.table(airports)
+flights <- as.data.table(flights)
+
+
+## Table of departure delays
+# Remove fights with unknown departure delays
+flights2 <- flights[is.na(dep_delay) == FALSE, ]
+
+# Get mean and median departure delays for each origin in flights
+dep_delays <- flights2[, list(mean_dep_delay = mean(dep_delay), 
+                              median_dep_delay = median(dep_delay)), 
+                       by = list(origin)] 
+
+# Copy faa column as new origin column in airports data, remove faa
+airports <- airports[, `:=` (origin = faa, faa = NULL)]
+
+# Merge data table of airports' code and name columns to departure delays data 
+# table such that only airport codes present in origin column of departure delays 
+# data table are kept
+dep_delays <- merge(dep_delays, airports, by = 'origin', all.x = TRUE)
+
+# Only keep mean and median departure delay, airport names
+dep_delays <- dep_delays[, list(name, mean_dep_delay, median_dep_delay)]
+
+# Order departure delays in descending mean delay
+dep_delays <- dep_delays[order(-mean_dep_delay)]
+
+# Print departure delays data table as tibble
+print(as_tibble(dep_delays), n = dim(dep_delays)[1])
+
+
+## Table of arrival delays
+# Remove flights that never arrived
+flights3 <- flights[is.na(arr_delay) == FALSE]
+
+# Get mean and median arrival delays for each destination
+arr_delays <- flights3[, list(mean_arr_delay = mean(arr_delay), 
+                              median_arr_delay = median(arr_delay), 
+                              n_arrivals = length(tailnum)), by = list(dest)]
+
+# Remove destinations with less than 10 arrivals
+arr_delays <- arr_delays[n_arrivals >= 10, ]
+
+# Reload airports data table, copy faa column as dest and remove faa
+airports <- nycflights13::airports
+airports <- as.data.table(airports)
+airports <- airports[, `:=` (dest = faa, faa = NULL)]
+
+# Join data table of airports' codes and names to arr_delays by dest, only keep 
+# rows in arr_delays
+arr_delays <- merge(arr_delays, airports, by = 'dest', all.x = TRUE)
+
+# Sort by descending mean dep delay
+arr_delays <- arr_delays[order(-mean_arr_delay)]
+
+# Only keep airport name, mean and median arrival delay
+arr_delays <- arr_delays[, list(name, mean_arr_delay, median_arr_delay)]
+
+# Print arr_delays as tibble
+print(as_tibble(arr_delays), n = dim(arr_delays)[1])
+```
+
+b.
+
+```{r}
+# Load in plane data
+planes <- nycflights13::planes
+
+#convert planes to data table
+planes <- as.data.table(planes)
+
+# Remove planes with unknown tail number
+flights_tailnum_cleaned <- filter(flights, is.na(tailnum) == FALSE)
+
+# Get number of flights for each tailnum, remove 
+n_flights_dt <- flights_tailnum_cleaned[, list(n_flights = length(time_hour)), 
+                                        by = list(tailnum)]
+
+# Remove planes with unkown speed from planes data table
+planes <- planes[is.na(speed) == FALSE, ]
+
+# Merge flights and planes data, only keep all data in planes
+planes <- merge(planes, n_flights_dt, by = 'tailnum', all.x = TRUE)
+
+# Group by manufacturer and model
+planes <- planes[, list(speed = mean(speed), n_flights = sum(n_flights)), 
+                 by = list(manufacturer, model)]
+
+# Order planes by descending speed
+planes <- planes[order(-speed), ]
+
+# Print fastest plane model (I kept the manufacturer column because it's common 
+# to call a plane model by their manufacturer followed by the model name ie. 
+# Airbus A320)
+print(as_tibble(planes[1, ]))
+```
 
