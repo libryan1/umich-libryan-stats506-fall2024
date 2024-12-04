@@ -1,0 +1,163 @@
+---
+title: "Stats 506 Problem Set 6"
+format:
+    html: 
+       embed-resources: true
+editor: visual
+---
+
+### Stratified Bootstrapping
+
+```{r}
+# Read in lahman database, get tables
+library(DBI)
+lahman <- dbConnect(RSQLite::SQLite(), "Datasets/lahman_1871-2022.sqlite")
+dbListTables(lahman)
+```
+
+a.  
+
+```{r}
+# Get names of teams for fielding table by left joining with teams table,
+# only keeping playerID, yearID, teamID, innouts, po, a, team name
+data <- dbGetQuery(lahman, 
+  "select playerID, yearID, teamID, innouts, po, a, name
+   from fielding
+   LEFT JOIN 
+   (SELECT teamID as teamID2, name
+   FROM Teams
+   GROUP BY teamID2
+  ) ON teamID = teamID2")
+
+# Remove players with 0 or NaN InnOuts, NaN PO and A
+data <- subset(data, InnOuts != 0 & is.na(InnOuts) == FALSE)
+data <- subset(data, is.na(PO) == FALSE & is.na(A) == FALSE)
+
+# Calculate RF for each player in each season
+library(dplyr)
+data <- mutate(data, RF = 3 * ((PO + A)/InnOuts))
+players <- data # Save player data as players
+
+# Get lifetime mean RF for each team
+data <- data %>% group_by(teamID, name) %>%
+  summarise(avg_RF = mean(RF))
+head(data)
+teams <- data # Save team data as teams
+```
+
+```{r}
+set.seed(1)
+
+#' Stratified bootstrap sampling function
+#' This function performs stratified bootstrap sampling by team on 
+#' the players dataframe created specifically for this problem
+#' set.  It is not intended for use in any other circumstances.
+#'
+#' Takes in index of a teamID from players$teamID, subsets it by
+#' that index, then samples 1000 with replacement from the subset.
+#' 
+#' @param team_i index of teamID in players$teamID
+#' @return the bootstrapped sample for the strata
+#'
+#'
+strat_boot <- function(team_i) {
+  teamIDs <- unique(players$teamID)
+  strata <- subset(players, teamID == teamIDs[team_i])
+  sample <- strata[sample(nrow(strata), size = 1000, replace = TRUE),]
+  return(sample)
+}
+
+#' Stratified bootstrap sample aggregator function
+#' This function aggregates the bootstrap samples from strat_boot 
+#' into a single dataframe.
+#' 
+#' @param x a placeholder
+#' @return the combined dataframe
+strat_boot_nice_return <- function(x) {
+  return_df <- strat_boot(1)
+  for (i in 2:140) {
+    sampled_df <- strat_boot(i)
+    return_df <- rbind(return_df, sampled_df)
+  }
+  return(return_df)
+}
+
+# No parallel processing
+  # Get stratified bootstrap sample
+sampled_data <- sapply(1, strat_boot_nice_return)
+  # Transform bootstrapped sample into a dataframe
+sampled_data_df <- data.frame(sampled_data[1], sampled_data[2],  sampled_data[3], sampled_data[4], sampled_data[5], sampled_data[6],  sampled_data[7], sampled_data[8])
+  # Restore original column names
+colnames(sampled_data_df) <- c('playerID', 'yearID', 'teamID', 'InnOuts', 'PO', 'A', 'name', 'RF')
+head(sampled_data_df)
+
+# Parallel processing
+library(parallel)
+  # Initiate cluster
+cl <- makeCluster(4)
+  # Export players df, strat_boot and strat_boot_nice_return functions to cluster
+clusterExport(cl, c('players', 'strat_boot', 'strat_boot_nice_return'))
+  # Perform stratified bootstrap sampling in cluster
+pp_sampled_data <- parSapply(cl, players, strat_boot_nice_return)
+# Stop cluster
+stopCluster(cl)
+ # Transform bootstrapped sample into a dataframe
+pp_sampled_data_df <- data.frame(pp_sampled_data[1], pp_sampled_data[2],  pp_sampled_data[3], pp_sampled_data[4], pp_sampled_data[5], pp_sampled_data[6],  pp_sampled_data[7], pp_sampled_data[8])
+  # Restore original column names
+colnames(pp_sampled_data_df) <- c('playerID', 'yearID', 'teamID', 'InnOuts', 'PO', 'A', 'name', 'RF')
+head(pp_sampled_data_df)
+
+# Futures
+library(future)
+f_sampled_data <- future({
+  sapply(1, strat_boot_nice_return)
+}, seed = TRUE)
+f_sampled_data_df <- data.frame(value(f_sampled_data)[1], value(f_sampled_data)[2],  value(f_sampled_data)[3], value(f_sampled_data)[4], value(f_sampled_data)[5], value(f_sampled_data)[6],  value(f_sampled_data)[7], value(f_sampled_data)[8])
+  # Restore original column names
+colnames(f_sampled_data_df) <- c('playerID', 'yearID', 'teamID', 'InnOuts', 'PO', 'A', 'name', 'RF')
+head(f_sampled_data_df)
+```
+
+```{r}
+sampled_data_stats <- sampled_data_df %>% 
+  group_by(teamID, name) %>%
+  summarise(mean_RF = mean(RF), se_RF = sd(RF) / sqrt(1000), .groups = 'keep')
+# Order teams by descending order
+sampled_data_stats <- arrange(sampled_data_stats, desc(mean_RF))
+# Get first 10 teams
+head(sampled_data_stats, 10)
+
+# Get mean and se of RF for each team
+pp_sampled_data_stats <- pp_sampled_data_df %>% 
+  group_by(teamID, name) %>%
+  summarise(mean_RF = mean(RF), se_RF = sd(RF) / sqrt(1000), .groups = 'keep')
+# Order teams by descending order
+pp_sampled_data_stats <- arrange(pp_sampled_data_stats, desc(mean_RF))
+# Get first 10 teams
+head(pp_sampled_data_stats, 10)
+
+# Get mean and se of RF for each team
+f_sampled_data_stats <- f_sampled_data_df %>% 
+  group_by(teamID, name) %>%
+  summarise(mean_RF = mean(RF), se_RF = sd(RF) / sqrt(1000), .groups = 'keep')
+# Order teams by descending order
+f_sampled_data_stats <- arrange(f_sampled_data_stats, desc(mean_RF))
+# Get first 10 teams
+head(f_sampled_data_stats, 10)
+```
+
+c.  
+
+All of the versions are fairly consistent.  They all share 8 teams, with the only teams they do not share appearing in the lower 10 for each of them.  Overall there appears to be little difference between them in terms of standard error, of the teams they share they are all similar, and when we find the average SE for each of the top 10s:
+```{r}
+mean(sampled_data_stats$se_RF[1:10])
+mean(pp_sampled_data_stats$se_RF[1:10])
+mean(f_sampled_data_stats$se_RF[1:10])
+```
+we see that there is little difference between them.  Finding the mean of the means:
+```{r}
+mean(sampled_data_stats$mean_RF[1:10])
+mean(pp_sampled_data_stats$mean_RF[1:10])
+mean(f_sampled_data_stats$mean_RF[1:10])
+```
+we see that for the overall means for the top 10 they are also quite similar.
