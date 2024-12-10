@@ -1,0 +1,280 @@
+---
+title: "Project Code"
+format: html
+editor: visual
+---
+
+### Goal: Determine if different states have different medicare payment amounts (money medicare provides), discern which factors contribute to this difference.
+
+Tot_Mdcr_Stdzd_Amt (total medical medicare payment amount standrardized) is the response variable
+
+### Libraries
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+
+### Lets load in the data
+
+```{r}
+phys_dat <- read.csv('Datasets/Medicare Physician & Other Practitioners - by Provider/2022/MUP_PHY_R24_P07_V10_D22_Prov.csv')
+head(phys_dat)
+```
+
+```{r}
+tax_dat <- read.csv('Datasets/21in55/21in55cmcsv.csv')
+head(tax_dat)
+```
+
+### Data Cleaning
+
+```{r}
+# Let's only use providers in US states
+phys_dat <- subset(phys_dat, Rndrng_Prvdr_State_Abrvtn %in% state.abb)
+
+# Let's only use tax information from US states
+tax_dat <- subset(tax_dat, STATE %in% state.abb)
+```
+
+```{r}
+# Removing unnecessary variables
+
+## phys_dat
+
+phys_dat2 <- phys_dat
+
+### name probably isn't important
+phys_dat2$Rndrng_Prvdr_Last_Org_Name <- NULL
+phys_dat2$Rndrng_Prvdr_First_Name <- NULL
+phys_dat2$Rndrng_Prvdr_MI <- NULL
+
+### We are not differentiating organizations from individual doctors
+phys_dat2$Rndrng_Prvdr_Crdntls <- NULL
+phys_dat2$Rndrng_Prvdr_Ent_Cd <- NULL
+phys_dat2$Rndrng_Prvdr_Gndr <- NULL
+
+### Non-state address info irrelevant
+phys_dat2$Rndrng_Prvdr_St1 <- NULL
+phys_dat2$Rndrng_Prvdr_St2 <- NULL
+phys_dat2$Rndrng_Prvdr_City <- NULL
+phys_dat2$Rndrng_Prvdr_State_FIPS <- NULL # Irrelevant with state abbreviations
+phys_dat2$Rndrng_Prvdr_Zip5 <- NULL
+phys_dat2$Rndrng_Prvdr_RUCA_Desc <- NULL
+phys_dat2$Rndrng_Prvdr_Cntry <- NULL
+
+### Provider info
+phys_dat2$Rndrng_Prvdr_Type <- NULL
+phys_dat2 <- mutate(phys_dat2, Rndrng_Prvdr_Mdcr_Prtcptg_Ind = ifelse(Rndrng_Prvdr_Mdcr_Prtcptg_Ind == 'Y', 1, 0))
+phys_dat2$Drug_Sprsn_Ind <- NULL # Seems irrelevant
+phys_dat2$Med_Sprsn_Ind <- NULL # See above
+
+### Dealing with data suppression
+  # I'm going to just replace the suppressed data with 5 (counts lower than 11 are suppressed, 5 is middle of 0 and 10)
+  # https://freerangestats.info/blog/2018/11/06/suppressed-data
+phys_dat2$Tot_Benes[is.na(phys_dat$Tot_Benes)] <- 5
+phys_dat2$Bene_CC_BH_ADHD_OthCD_V1_Pct[is.na(phys_dat$Bene_CC_BH_ADHD_OthCD_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_ADHD_OthCD_V1_Pct)] # This is a percentage of total beneficiaries, which is suppressed if count is less than 11
+phys_dat2$Bene_CC_BH_Tobacco_V1_Pct[is.na(phys_dat$Bene_CC_BH_Tobacco_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Tobacco_V1_Pct)]
+phys_dat2$Bene_CC_BH_Alz_NonAlzdem_V2_Pct[is.na(phys_dat$Bene_CC_BH_Alz_NonAlzdem_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Alz_NonAlzdem_V2_Pct)]
+phys_dat2$Bene_CC_BH_Anxiety_V1_Pct[is.na(phys_dat$Bene_CC_BH_Anxiety_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Anxiety_V1_Pct)]
+phys_dat2$Bene_CC_BH_Bipolar_V1_Pct[is.na(phys_dat$Bene_CC_BH_Bipolar_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Bipolar_V1_Pct)]
+phys_dat2$Bene_CC_BH_Mood_V2_Pct[is.na(phys_dat$Bene_CC_BH_Mood_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Mood_V2_Pct)]
+phys_dat2$Bene_CC_BH_Depress_V1_Pct[is.na(phys_dat$Bene_CC_BH_Depress_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Depress_V1_Pct)]
+phys_dat2$Bene_CC_BH_PD_V1_Pct[is.na(phys_dat$Bene_CC_BH_PD_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_PD_V1_Pct)]
+phys_dat2$Bene_CC_BH_PTSD_V1_Pct[is.na(phys_dat$Bene_CC_BH_PTSD_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_PTSD_V1_Pct)]
+phys_dat2$Bene_CC_BH_Schizo_OthPsy_V1_Pct[is.na(phys_dat$Bene_CC_BH_Schizo_OthPsy_V1_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_BH_Schizo_OthPsy_V1_Pct)]
+phys_dat2$Bene_CC_PH_Asthma_V2_Pct[is.na(phys_dat$Bene_CC_PH_Asthma_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Asthma_V2_Pct)]
+phys_dat2$Bene_CC_PH_Afib_V2_Pct[is.na(phys_dat$Bene_CC_PH_Afib_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Afib_V2_Pct)]
+phys_dat2$Bene_CC_PH_Cancer6_V2_Pct[is.na(phys_dat$Bene_CC_PH_Cancer6_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Cancer6_V2_Pct)]
+phys_dat2$Bene_CC_PH_CKD_V2_Pct[is.na(phys_dat$Bene_CC_PH_CKD_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_CKD_V2_Pct)]
+phys_dat2$Bene_CC_PH_COPD_V2_Pct[is.na(phys_dat$Bene_CC_PH_COPD_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_COPD_V2_Pct)]
+phys_dat2$Bene_CC_PH_Diabetes_V2_Pct[is.na(phys_dat$Bene_CC_PH_Diabetes_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Diabetes_V2_Pct)]
+phys_dat2$Bene_CC_PH_HF_NonIHD_V2_Pct[is.na(phys_dat$Bene_CC_PH_HF_NonIHD_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_HF_NonIHD_V2_Pct)]
+phys_dat2$Bene_CC_PH_Hyperlipidemia_V2_Pct[is.na(phys_dat$Bene_CC_PH_Hyperlipidemia_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Hyperlipidemia_V2_Pct)]
+phys_dat2$Bene_CC_PH_Hypertension_V2_Pct[is.na(phys_dat$Bene_CC_PH_Hypertension_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Hypertension_V2_Pct)]
+phys_dat2$Bene_CC_PH_IschemicHeart_V2_Pct[is.na(phys_dat$Bene_CC_PH_IschemicHeart_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_IschemicHeart_V2_Pct)]
+phys_dat2$Bene_CC_PH_Osteoporosis_V2_Pct[is.na(phys_dat$Bene_CC_PH_Osteoporosis_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Osteoporosis_V2_Pct)]
+phys_dat2$Bene_CC_PH_Parkinson_V2_Pct[is.na(phys_dat$Bene_CC_PH_Parkinson_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Parkinson_V2_Pct)]
+phys_dat2$Bene_CC_PH_Arthritis_V2_Pct[is.na(phys_dat$Bene_CC_PH_Arthritis_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Arthritis_V2_Pct)]
+phys_dat2$Bene_CC_PH_Stroke_TIA_V2_Pct[is.na(phys_dat$Bene_CC_PH_Stroke_TIA_V2_Pct)] <- 
+  5 / phys_dat2$Tot_Benes[is.na(phys_dat$Bene_CC_PH_Stroke_TIA_V2_Pct)]
+
+phys_dat <- phys_dat2
+
+## tax_dat
+
+### Convert variables to numeric
+tax_dat_STATE <- tax_dat$STATE
+tax_dat <- as.data.frame(lapply(tax_dat, function(x) as.numeric(gsub(',', '', x))))
+tax_dat$STATE <- tax_dat_STATE
+
+### Let's merge the income brackets for each state
+
+tax_dat2 <- tax_dat
+
+  # https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/reshape
+tax_dat3 <- reshape(
+  tax_dat2,
+  idvar = 'STATE',
+  timevar = 'AGI_STUB',
+  direction = 'wide'
+)
+tax_dat <- tax_dat3
+
+
+# Remove unnecessary objects
+
+rm(phys_dat2, tax_dat_STATE, tax_dat2, tax_dat3)
+
+
+# Display cleaned dataframes
+head(phys_dat)
+head(tax_dat)
+```
+
+```{r}
+# Check for remaining NAs in phys_dat
+
+sapply(phys_dat, function(x) sum(is.na(x)))
+```
+
+```{r}
+# Except for RUCA, The remaining NAs have no suppression method specified.  Let's remove them.
+
+phys_dat2 <- phys_dat
+phys_dat2$Drug_Tot_HCPCS_Cds <- NULL
+phys_dat2$Drug_Tot_Benes <- NULL
+phys_dat2$Drug_Tot_Srvcs <- NULL
+phys_dat2$Drug_Sbmtd_Chrg <- NULL
+phys_dat2$Drug_Mdcr_Alowd_Amt <- NULL
+phys_dat2$Drug_Mdcr_Pymt_Amt <- NULL
+phys_dat2$Drug_Mdcr_Stdzd_Amt <- NULL
+phys_dat2$Med_Tot_HCPCS_Cds <- NULL
+phys_dat2$Med_Tot_Benes <- NULL
+phys_dat2$Med_Tot_Srvcs <- NULL
+phys_dat2$Med_Sbmtd_Chrg <- NULL
+phys_dat2$Med_Mdcr_Alowd_Amt <- NULL
+phys_dat2$Med_Mdcr_Pymt_Amt <- NULL
+phys_dat2$Med_Mdcr_Stdzd_Amt <- NULL
+phys_dat2$Bene_Age_LT_65_Cnt <- NULL
+phys_dat2$Bene_Age_65_74_Cnt <- NULL
+phys_dat2$Bene_Age_75_84_Cnt <- NULL
+phys_dat2$Bene_Age_GT_84_Cnt <- NULL
+phys_dat2$Bene_Feml_Cnt <- NULL
+phys_dat2$Bene_Male_Cnt <- NULL
+phys_dat2$Bene_Race_Wht_Cnt <- NULL
+phys_dat2$Bene_Race_Black_Cnt <- NULL
+phys_dat2$Bene_Race_API_Cnt <- NULL
+phys_dat2$Bene_Race_Hspnc_Cnt <- NULL
+phys_dat2$Bene_Race_NatInd_Cnt <- NULL
+phys_dat2$Bene_Race_Othr_Cnt <- NULL
+phys_dat2$Bene_Dual_Cnt <- NULL
+
+
+# Remove rows with unknown RUCA
+phys_dat2 <- phys_dat2[!is.na(phys_dat2$Rndrng_Prvdr_RUCA), ]
+
+
+sapply(phys_dat2, function(x) sum(is.na(x)))
+phys_dat <- phys_dat2
+rm(phys_dat2)
+```
+
+
+### First let's see how medicare payments vary by state
+
+Let's see which states are significant predictors in linear regression
+
+```{r}
+phys_dat_states_only <- phys_dat[c('Rndrng_Prvdr_State_Abrvtn', 'Tot_Mdcr_Stdzd_Amt')]
+lm_states <- lm(Tot_Mdcr_Stdzd_Amt ~ Rndrng_Prvdr_State_Abrvtn, phys_dat_states_only)
+summary(lm_states)
+```
+
+AL, AR, AZ, CA, DE, FL, IL, KS, MD, MS, NJ, NV, OK, SC, TN, TX, VA are significant predictors at a significance level of 0.05.
+
+### How do the stats of different state's taxes influence medicare payments?
+
+```{r}
+# First let's merge the datasets
+
+mdcr_taxes_dat <- merge(phys_dat[c('Rndrng_Prvdr_State_Abrvtn', 'Tot_Mdcr_Stdzd_Amt')], tax_dat, by.x = 'Rndrng_Prvdr_State_Abrvtn', by.y = 'STATE')
+```
+
+With over 1000 predictors and 100000 observations it is unrealistic to test each one.
+
+Let's instead try using stepwise selection.  
+
+```{r}
+#set.seed(1)
+# Reduce dataset with stratified sampling
+mdcr_taxes_samp <- mdcr_taxes_dat %>%
+  group_by(Rndrng_Prvdr_State_Abrvtn) %>%
+  sample_n(50)
+
+# https://cran.r-project.org/web/packages/olsrr/index.html
+# https://cran.r-project.org/web/packages/olsrr/vignettes/variable_selection.html
+library(olsrr)
+lm_taxes <- lm(Tot_Mdcr_Stdzd_Amt ~ ., mdcr_taxes_samp[, 2:dim(mdcr_taxes_dat)[2]]) # Do not use the state abbreviation as predictor
+ols_step_forward_p(lm_taxes)
+```
+
+Forward stepwise selection using AIC from the reduced sample estimates a linear regression model using A00700.4 (state and local income tax refunds amount for AGI stub 4), N00700.2 (number of returns with state and local income tax refunds for AGI stub 2), A85300.1 (net investment income tax for AGI stub 1), MVITA.0 (number of military volunteer prepared returns for AGI stub 0), A18800.8 (personal property taxes amount for AGI stub 8), A11520.9 (refundable child and dependent care credit for AGI stub 9), A19570.2 (investment interest paid amount for AGI stub 2), A19500.9 (home mortgage from personal seller amount for AGI stub 9), A11450.9 (qualified sick and family leave credit for leave taken before april 1 2021 amount for AGI stub 9), A11530.10 (qualified sick and family leave credit for leave taken after march 31 2021 for AGI stub 10), and A85530.2 (additional medicare tax for AGI stub 2).
+
+It should be noted that this model has a very low r^2 value and poor predictive power.  A85300.1, A11530.10, and A85530.2 are not significant.
+
+```{r}
+lm_taxes_only <- lm(Tot_Mdcr_Stdzd_Amt ~ A00700.4 + N00700.2 + A85300.1 + MVITA.0 + A18800.8 + A11520.9 + A19570.2 + A19500.9 + A11530.10 + A85530.2, mdcr_taxes_dat)
+summary(lm_taxes_only)
+```
+
+### Are these predictors still significant when utilized alongside variables from phys_dat?
+
+```{r}
+# Let's determine the best predictors from phys_dat
+phys_dat$Tot_Mdcr_Pymt_Amt <- NULL
+phys_samp <- phys_dat %>%
+  group_by(Rndrng_Prvdr_State_Abrvtn) %>%
+  sample_n(50)
+lm_phys <- lm(Tot_Mdcr_Stdzd_Amt ~ . - Rndrng_NPI - Rndrng_Prvdr_State_Abrvtn - Rndrng_Prvdr_Mdcr_Prtcptg_Ind + factor(Rndrng_Prvdr_Mdcr_Prtcptg_Ind), phys_samp)
+ols_step_forward_p(lm_phys)
+```
+
+Tot_Mdcr_Alowd_Amt, Bene_Ndual_Cnt, Tot_Benes, Tot_Srvcs, Tot_Sbmtd_Chrg, Bene_CC_BH_Mood_V2_Pct, Bene_CC_PH_Afib_V2_Pct, Bene_CC_BH_Ptsd_V1_Pct, Tot_HCPCS_Cds, Bene_CC_PH_Parkinson_V2_Pct, Bene_CC_PH_Hyperlipidemia_V2_Pct, Bene_Avg_Risk_Scre, Rndrng_Prvdr_RUCA, and Bene_CC_PH_COPD_V2_Pct
+
+```{r}
+lm_phys_final <- lm(Tot_Mdcr_Stdzd_Amt ~ Tot_Mdcr_Alowd_Amt + Bene_Ndual_Cnt + Tot_Benes + Tot_Srvcs +  Tot_Sbmtd_Chrg+ Bene_CC_BH_Mood_V2_Pct+ Bene_CC_PH_Afib_V2_Pct + Bene_CC_BH_PTSD_V1_Pct + Tot_HCPCS_Cds+ Bene_CC_PH_Parkinson_V2_Pct+ Bene_CC_PH_Hyperlipidemia_V2_Pct+ Bene_Avg_Risk_Scre+ Rndrng_Prvdr_RUCA+ Bene_CC_PH_COPD_V2_Pct, phys_dat)
+summary(lm_phys_final)
+```
+
+```{r}
+# Full model
+final_dat <- merge(phys_dat[c('Rndrng_Prvdr_State_Abrvtn','Tot_Mdcr_Alowd_Amt',  'Tot_Mdcr_Stdzd_Amt','Bene_Ndual_Cnt','Tot_Benes','Tot_Srvcs','Tot_Sbmtd_Chrg', 'Bene_CC_BH_Mood_V2_Pct', 'Bene_CC_PH_Afib_V2_Pct', 'Bene_CC_BH_PTSD_V1_Pct', 'Tot_HCPCS_Cds', 'Bene_CC_PH_Parkinson_V2_Pct', 'Bene_CC_PH_Hyperlipidemia_V2_Pct', 'Bene_Avg_Risk_Scre','Rndrng_Prvdr_RUCA', 'Bene_CC_PH_COPD_V2_Pct')], tax_dat[c('A00700.4', 'N00700.2', 'A85300.1', 'A18800.8', 'A11520.9', 'A19570.2', 'A19500.9', 'A11530.10', 'STATE')], by.x = 'Rndrng_Prvdr_State_Abrvtn', by.y = 'STATE')
+lm_final <- lm(Tot_Mdcr_Stdzd_Amt ~ . - Rndrng_Prvdr_State_Abrvtn, final_dat)
+summary(lm_final)
+```
+
